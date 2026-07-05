@@ -1,0 +1,13 @@
+# Netlify configuration for the Next.js portfolio.
+# The Next.js runtime (@netlify/plugin-nextjs) is auto-installed by Netlify and
+# handles SSR, API routes (/api/chat, /api/contact), /rss.xml and sitemap.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

@@ -1,0 +1,375 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Theme tokens — dark (default) and light, toggled via [data-theme] on <html>
+--------------------------------------------------------------------------- */
+:root {
+  --bg: #0a0a0a;
+  --surface: #111;
+  --surface-2: #161616;
+  --border: #2e2e2e;
+  --border-strong: #2a2a2a;
+  --text: #e5e5e5;
+  --text-bright: #fff;
+  --text-dim: #7a7a7a;
+  --text-faint: #4a4a4a;
+  --accent: #0f8;
+  --on-accent: #001a0e;
+  --accent-dim: #00ff8826;
+  --accent-glow: #00ff8859;
+  --dot-base: #ffffff14;
+  --dot-bright: #0f8;
+  --grid-line: #ffffff06;
+  --shadow-card: 0 1px 0 #ffffff08 inset;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo,
+    monospace;
+  --font-sans: var(--font-geist-sans), "Inter", -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --torch-radius: 220px;
+  --mx: 50vw;
+  --my: 50vh;
+}
+
+[data-theme="light"] {
+  --bg: #fafaf7;
+  --surface: #fff;
+  --surface-2: #f4f4f0;
+  --border: #e5e3dd;
+  --border-strong: #d4d2cc;
+  --text: #1a1a1a;
+  --text-bright: #000;
+  --text-dim: #6b6b6b;
+  --text-faint: #b5b5b5;
+  --accent: #00a85a;
+  --on-accent: #001a0e;
+  --accent-dim: #00a85a1f;
+  --accent-glow: #00a85a4d;
+  --dot-base: #00000021;
+  --dot-bright: #00a85a;
+  --grid-line: #0000000a;
+}
+
+html {
+  interpolate-size: allow-keywords;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizelegibility;
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.55;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--accent);
+  color: #000;
+}
+
+/* ---------------------------------------------------------------------------
+   Fixed background layers (grid, dots, mouse torch, vignette)
+--------------------------------------------------------------------------- */
+.bg-layer {
+  pointer-events: none;
+  z-index: 0;
+  position: fixed;
+  inset: 0;
+}
+.bg-grid {
+  background-image: linear-gradient(
+      to right,
+      var(--grid-line) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-position: -1px -1px;
+  background-size: 96px 96px;
+}
+.bg-dots-base {
+  background-image: radial-gradient(
+    circle,
+    var(--dot-base) 1px,
+    transparent 1.4px
+  );
+  background-size: 24px 24px;
+}
+.bg-dots-torch {
+  background-image: radial-gradient(
+    circle,
+    var(--dot-bright) 1.4px,
+    transparent 1.8px
+  );
+  opacity: 0.95;
+  -webkit-mask-image: radial-gradient(
+    circle var(--torch-radius) at var(--mx) var(--my),
+    #000 0%,
+    #000000a6 35%,
+    #0000 75%
+  );
+  mask-image: radial-gradient(
+    circle var(--torch-radius) at var(--mx) var(--my),
+    #000 0%,
+    #000000a6 35%,
+    #0000 75%
+  );
+  background-size: 24px 24px;
+  transition: opacity 0.25s;
+}
+.bg-vignette {
+  background: radial-gradient(ellipse at top, transparent 0%, var(--bg) 75%);
+  opacity: 0.6;
+}
+[data-theme="light"] .bg-vignette {
+  opacity: 0.3;
+}
+
+.topbar {
+  background: color-mix(in oklab, var(--bg) 75%, transparent);
+  will-change: transform;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* ---------------------------------------------------------------------------
+   Keyframes
+--------------------------------------------------------------------------- */
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes blip-pulse {
+  0%,
+  to {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+@keyframes typingBounce {
+  0%,
+  60%,
+  to {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Long-form article styling (project + blog detail pages)
+--------------------------------------------------------------------------- */
+.post-prose {
+  font-family: var(--font-sans);
+  color: var(--text);
+  max-width: 70ch;
+  font-size: 17px;
+  line-height: 1.72;
+}
+.post-prose > * + * {
+  margin-top: 1.2em;
+}
+.post-prose p {
+  text-wrap: pretty;
+  margin: 0;
+}
+.post-prose strong {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+.post-prose em {
+  color: var(--accent);
+  font-style: italic;
+}
+.post-prose a {
+  color: var(--accent);
+  border-bottom: 1px solid color-mix(in oklab, var(--accent) 40%, transparent);
+  transition: border-color 0.15s;
+}
+.post-prose a:hover {
+  border-bottom-color: var(--accent);
+}
+.post-prose h2 {
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+  color: var(--text-bright);
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 2.4em;
+  margin-bottom: 0.6em;
+  scroll-margin-top: 100px;
+  font-size: 26px;
+  font-weight: 500;
+  display: flex;
+}
+.post-prose h2::before {
+  content: "##";
+  color: var(--accent);
+  opacity: 0.7;
+  font-size: 0.7em;
+}
+.post-prose h3 {
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+  color: var(--text-bright);
+  margin-top: 2em;
+  margin-bottom: 0.5em;
+  scroll-margin-top: 100px;
+  font-size: 19px;
+  font-weight: 500;
+}
+.post-prose h3::before {
+  content: "### ";
+  color: var(--accent);
+  opacity: 0.6;
+}
+.post-prose ul,
+.post-prose ol {
+  margin-left: 0;
+  padding-left: 1.4em;
+}
+.post-prose ul {
+  list-style-type: disc;
+}
+.post-prose ol {
+  list-style-type: decimal;
+}
+.post-prose li {
+  margin-top: 0.4em;
+}
+.post-prose ul li::marker {
+  color: var(--accent);
+}
+.post-prose ol li::marker {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+.post-prose blockquote {
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  background: var(--accent-dim);
+  border-radius: 0 8px 8px 0;
+  margin: 1.4em 0;
+  padding: 14px 18px;
+  font-style: italic;
+}
+.post-prose blockquote p {
+  margin: 0;
+}
+.post-prose code:not(pre code) {
+  font-family: var(--font-mono);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.88em;
+}
+.post-prose img {
+  background: var(--surface-2);
+  border-radius: 14px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  box-shadow: 0 4px 28px #00000073;
+}
+.post-prose p:has(> img:only-child) {
+  text-align: center;
+  margin: 2em 0;
+}
+.post-prose .screenshot-grid {
+  flex-wrap: nowrap;
+  gap: 12px;
+  margin: 2em 0;
+  display: flex;
+  overflow: hidden;
+}
+.post-prose .screenshot-grid > p,
+.post-prose .screenshot-grid > div {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 280px;
+  margin: 0;
+}
+.post-prose .screenshot-grid img {
+  background: var(--surface-2);
+  border-radius: 20px;
+  width: 100%;
+  height: auto;
+  display: block;
+  box-shadow: 0 8px 40px #0000008c;
+}
+.post-prose .app-logo {
+  justify-content: center;
+  margin: 1.5em 0;
+  display: flex;
+}
+.post-prose .app-logo img {
+  object-fit: contain;
+  background: #1a1a1a;
+  border-radius: 24px;
+  width: 120px;
+  height: 120px;
+  box-shadow: 0 4px 20px #0006;
+}
+.callout {
+  border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+  background: var(--accent-dim);
+  border-radius: 10px;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  margin: 1.6em 0;
+  padding: 16px 18px;
+  font-size: 15px;
+  line-height: 1.6;
+  display: grid;
+}
+.callout::before {
+  content: "›";
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.callout p {
+  margin: 0;
+}
+[data-theme="light"] .post-prose img {
+  box-shadow: 0 2px 12px #0000001a;
+}
+[data-theme="light"] .post-prose .screenshot-grid img {
+  box-shadow: 0 4px 20px #0000001f;
+}
+
+/* ---------------------------------------------------------------------------
+   Image placeholder blocks (swap these for real images later)
+--------------------------------------------------------------------------- */
+.img-placeholder {
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 12px,
+      var(--grid-line) 12px,
+      var(--grid-line) 13px
+    ),
+    var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 12px;
+}

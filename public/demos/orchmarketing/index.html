@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OrchMarketing — Interactive Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    html, body { height: 100%; margin: 0; background: #0a0a0b; }
+    /* Full-viewport shell for the standalone page. When embedded as a component,
+       size #orchmarketing-demo from the host instead. */
+    #orchmarketing-demo { height: 100vh; }
+  </style>
+</head>
+<body>
+  <!-- The demo mounts itself here. Remove data-manual to keep auto-mount. -->
+  <div id="orchmarketing-demo"></div>
+
+  <script src="demo-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
