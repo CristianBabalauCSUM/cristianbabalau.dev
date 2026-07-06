@@ -40,7 +40,7 @@ export type Project = {
   /** Optional file download rendered in the detail-page header */
   download?: { label: string; href: string };
   /** Optional interactive showcase rendered on the detail page */
-  demo?: "transport" | "orchecomm";
+  demo?: "transport" | "orchecomm" | "tspa";
   featured?: boolean;
   body: BodyBlock[];
 };
@@ -122,11 +122,12 @@ export const projects: Project[] = [
     period: "2025 – 2026",
     lastActive: "Jun 2026",
     tags: ["Python", "NLP", "graph analysis", "research"],
-    badges: ["Graded 8.5 / 10"],
+    badges: ["Graded 8.5 / 10", "Interactive"],
     download: {
       label: "download thesis (PDF)",
       href: "/BCS_Thesis-Cristian-Teodor_Babalau.pdf",
     },
+    demo: "tspa",
     featured: true,
     body: [
       { type: "h2", text: "Overview" },

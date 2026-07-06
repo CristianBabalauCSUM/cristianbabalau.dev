@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Information Operations — campaign interaction graphs</title>
+<script src="vis-network.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+  :root{--bg:#0a0a0a;--surface:#111;--surface2:#161616;--border:#2e2e2e;--border2:#2a2a2a;--text:#e5e5e5;--bright:#fff;--dim:#7a7a7a;--faint:#4a4a4a;--accent:#0f8;--mono:'JetBrains Mono',ui-monospace,Menlo,monospace;}
+  html,body{margin:0;padding:0;height:100%;font-family:var(--mono);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;}
+  #app{display:grid;grid-template-rows:auto 1fr;height:100vh;}
+  #bar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--border);font-size:12px;flex-wrap:wrap;}
+  #bar label{color:var(--dim);}
+  #bar select{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;font-family:var(--mono);cursor:pointer;transition:border-color .15s;}
+  #bar select:focus{outline:none;border-color:var(--accent);}
+  #bar .spacer{flex:1;}
+  #bar .meta{color:var(--faint);font-size:11px;}
+  #main{display:grid;grid-template-columns:1fr 360px;min-height:0;}
+  #graph{position:relative;background:var(--bg);min-height:0;background-image:radial-gradient(circle,#ffffff0a 1px,transparent 1.4px);background-size:24px 24px;}
+  #legend{position:absolute;top:12px;left:12px;background:color-mix(in oklab,var(--surface) 86%,transparent);border:1px solid var(--border);padding:10px 14px;border-radius:8px;font-size:11px;z-index:5;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);color:var(--dim);}
+  #legend .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+  #legend .io{background:#0f8;box-shadow:0 0 8px #00ff8859;} #legend .ctl{background:#7a7a7a;} #legend .iso{background:#3a3a3a;}
+  #loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--dim);font-size:13px;z-index:4;}
+  #error{position:absolute;top:12px;right:12px;background:#2a0f0f;border:1px solid #7f1d1d;color:#fca5a5;padding:10px 14px;border-radius:8px;font-size:12px;z-index:6;display:none;max-width:400px;}
+  #sidebar{border-left:1px solid var(--border);padding:14px;overflow-y:auto;background:var(--surface);}
+  #sidebar h1{font-size:12px;margin:0 0 8px 0;letter-spacing:0.06em;color:var(--dim);text-transform:uppercase;}
+  #search{width:100%;padding:7px 10px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:var(--mono);box-sizing:border-box;transition:border-color .15s;}
+  #search:focus{outline:none;border-color:var(--accent);}
+  #acct-list{max-height:200px;overflow-y:auto;margin-top:8px;border:1px solid var(--border);border-radius:8px;}
+  #acct-list .row{padding:5px 9px;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border);font-family:var(--mono);transition:background .12s;}
+  #acct-list .row:last-child{border-bottom:none;}
+  #acct-list .row:hover{background:var(--surface2);}
+  #acct-list .row .io{color:#0f8;} #acct-list .row .ctl{color:#7a7a7a;} #acct-list .row .iso{color:#4a4a4a;}
+  #inspector{margin-top:16px;}
+  #inspector .hint{color:var(--faint);font-style:italic;font-size:12px;}
+  #inspector .id{font-family:var(--mono);font-size:11px;word-break:break-all;color:var(--dim);}
+  #inspector .badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;margin-right:4px;font-weight:600;}
+  #inspector .badge.io{background:#00ff8826;color:#0f8;border:1px solid #0f8;} #inspector .badge.ctl{background:var(--surface2);color:var(--dim);border:1px solid var(--border);} #inspector .badge.iso{background:var(--surface2);color:var(--faint);border:1px solid var(--border);}
+  #inspector table{font-size:12px;margin-top:10px;width:100%;border-collapse:collapse;}
+  #inspector table td{padding:3px 0;vertical-align:top;}
+  #inspector table td:first-child{color:var(--dim);width:100px;}
+  .post{padding:7px 9px;border-left:2px solid var(--border);margin:6px 0;font-size:12px;background:var(--surface2);border-radius:0 6px 6px 0;}
+  .post .meta{color:var(--faint);font-size:10px;margin-bottom:3px;}
+  .post.retweet{border-left-color:#0f8;} .post.reply{border-left-color:#7a7a7a;} .post.post{border-left-color:#4a4a4a;}
+  .tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:1px 6px;border-radius:4px;font-size:10px;margin:1px;}
+  #sidebar::-webkit-scrollbar,#acct-list::-webkit-scrollbar{width:6px;}
+  #sidebar::-webkit-scrollbar-thumb,#acct-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+</style></head><body>
+<div id="app">
+  <div id="bar">
+    <label>Campaign</label>
+    <select id="campaign-select"><option value="Armenia">Armenia</option></select>
+    <label>Graph</label>
+    <select id="variant-select">
+      <option value="io">IO only</option>
+      <option value="all" selected>IO + control (connected)</option>
+      <option value="full">Full (connected + isolated ring)</option>
+    </select>
+    <label>Component</label>
+    <select id="component-select"><option value="all">All</option></select>
+    <label>Edges</label>
+    <select id="edge-mode-select">
+      <option value="width" selected>width = weight</option>
+      <option value="color">color = weight (log)</option>
+    </select>
+    <label>Layout</label>
+    <select id="layout-mode-select">
+      <option value="precomputed" selected>precomputed</option>
+      <option value="relax">relax (physics)</option>
+    </select>
+    <span class="spacer"></span>
+    <span id="meta" class="meta"></span>
+  </div>
+  <div id="main">
+    <div id="graph">
+      <div id="legend">
+        <div><span class="dot io"></span>IO account</div>
+        <div><span class="dot ctl"></span>Control account</div>
+        <div><span class="dot iso"></span>Isolated (no intra-set link)</div>
+        <div style="margin-top:6px;color:#9ca3af;">Scroll to zoom · drag to pan · click a node</div>
+        <div style="margin-top:2px;color:#9ca3af;">← → to step through components</div>
+        <div id="legend-edge-ramp" style="margin-top:6px;display:none;">
+          <div style="color:#9ca3af;margin-bottom:2px;">edge weight (log)</div>
+          <div style="height:8px;width:160px;background:linear-gradient(to right,#440154,#31688e,#35b779,#fde725);border-radius:2px;"></div>
+          <div style="display:flex;justify-content:space-between;color:#9ca3af;font-size:10px;margin-top:2px;">
+            <span>low</span><span id="legend-edge-max">—</span>
+          </div>
+        </div>
+      </div>
+      <div id="loading">Loading…</div>
+      <div id="error"></div>
+      <div id="net" style="position:absolute;inset:0;width:100%;height:100%;"></div>
+    </div>
+    <div id="sidebar">
+      <h1 id="sidebar-title">—</h1>
+      <input id="search" placeholder="Filter accounts by id prefix…">
+      <div id="acct-list"></div>
+      <div id="inspector"><div class="hint">Click a node to inspect the account.</div></div>
+    </div>
+  </div>
+</div>
+<script>
+const CAMPAIGN_FILES = {"Armenia": "campaign_Armenia.js"};
+const CAMPAIGN_ORDER = ["Armenia"];
+window.CAMPAIGN_DATA = window.CAMPAIGN_DATA || {};
+
+let net = null;
+let currentCampaign = null;
+let currentVariant = 'all';
+let currentComponent = 'all';   // 'all' or numeric index (as string)
+let currentEdgeMode = 'width';  // 'width' | 'color'
+let currentLayoutMode = 'precomputed'; // 'precomputed' | 'relax'
+const loading = document.getElementById('loading');
+const errorBox = document.getElementById('error');
+
+function showError(msg){ errorBox.textContent = msg; errorBox.style.display='block'; console.error(msg); }
+function hideError(){ errorBox.style.display='none'; }
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>\"']/g, function(c){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'})[c];
+  });
+}
+function colorFor(n){ if(!n.connected) return '#3a3a3a'; return n.is_control ? '#7a7a7a' : '#00ff88'; }
+
+// Viridis-ish 4-stop ramp — matches notebook 2's matplotlib.cm.viridis.
+// Input t ∈ [0,1]; returns an rgba() string at a fixed alpha for edges.
+const _VIRIDIS = [
+  [0.00,  68,   1,  84],
+  [0.25,  59,  82, 139],
+  [0.50,  33, 145, 140],
+  [0.75,  94, 201,  98],
+  [1.00, 253, 231,  37],
+];
+function viridis(t, alpha){
+  t = Math.max(0, Math.min(1, t));
+  for(let i = 1; i < _VIRIDIS.length; i++){
+    if(t <= _VIRIDIS[i][0]){
+      const a = _VIRIDIS[i-1], b = _VIRIDIS[i];
+      const u = (t - a[0]) / (b[0] - a[0] || 1);
+      const r = Math.round(a[1] + (b[1]-a[1])*u);
+      const g = Math.round(a[2] + (b[2]-a[2])*u);
+      const bl = Math.round(a[3] + (b[3]-a[3])*u);
+      return 'rgba('+r+','+g+','+bl+','+alpha+')';
+    }
+  }
+  return 'rgba(253,231,37,'+alpha+')';
+}
+
+// Find connected components among `connected === true` nodes; returns
+// array of {nodeIds:[...], n, e} sorted by (n desc, e desc).  Runs once
+// per (campaign, variant) visit and is fast even for 13 k-node graphs.
+function computeComponents(nodes, edges){
+  const allowed = new Set();
+  nodes.forEach(function(n){ if(n.connected) allowed.add(n.id); });
+  const adj = new Map();
+  allowed.forEach(function(id){ adj.set(id, []); });
+  edges.forEach(function(e){
+    if(allowed.has(e.source) && allowed.has(e.target)){
+      adj.get(e.source).push(e.target);
+      adj.get(e.target).push(e.source);
+    }
+  });
+  const seen = new Set();
+  const comps = [];
+  allowed.forEach(function(start){
+    if(seen.has(start)) return;
+    const stack = [start]; const ids = [];
+    while(stack.length){
+      const u = stack.pop();
+      if(seen.has(u)) continue;
+      seen.add(u); ids.push(u);
+      const nbrs = adj.get(u) || [];
+      for(let i=0;i<nbrs.length;i++){ if(!seen.has(nbrs[i])) stack.push(nbrs[i]); }
+    }
+    comps.push({ nodeIds: ids, n: ids.length, e: 0 });
+  });
+  const compIdxOf = new Map();
+  comps.forEach(function(c, i){ c.nodeIds.forEach(function(id){ compIdxOf.set(id, i); }); });
+  edges.forEach(function(e){
+    const ci = compIdxOf.get(e.source);
+    if(ci !== undefined && ci === compIdxOf.get(e.target)) comps[ci].e += 1;
+  });
+  comps.sort(function(a, b){ return (b.n - a.n) || (b.e - a.e); });
+  return comps;
+}
+
+function loadCampaign(name){
+  if(window.CAMPAIGN_DATA[name]) return Promise.resolve(window.CAMPAIGN_DATA[name]);
+  return new Promise(function(resolve, reject){
+    const s = document.createElement('script');
+    s.src = CAMPAIGN_FILES[name];
+    s.onload = function(){
+      if(window.CAMPAIGN_DATA[name]) resolve(window.CAMPAIGN_DATA[name]);
+      else reject(new Error('campaign_'+name+'.js loaded but window.CAMPAIGN_DATA['+name+'] is missing'));
+    };
+    s.onerror = function(){ reject(new Error('Failed to load '+s.src)); };
+    document.head.appendChild(s);
+  });
+}
+
+function render(){
+  hideError();
+  const camp = window.CAMPAIGN_DATA[currentCampaign];
+  if(!camp){ return; }
+  const variant = camp.variants[currentVariant] || camp.variants.all;
+  const allNodes = variant.nodes;
+  const allEdges = variant.edges;
+
+  // --- component browser: compute once per (variant, campaign) and
+  //     rebuild the dropdown.  A stashed result on the variant object
+  //     avoids recomputing BFS on every re-render.
+  if(!variant._components){
+    variant._components = computeComponents(allNodes, allEdges);
+  }
+  const comps = variant._components;
+  const compSel = document.getElementById('component-select');
+  const totalConnected = comps.reduce(function(s, c){ return s + c.n; }, 0);
+  let opts = '<option value="all">All components ('+comps.length+', '+totalConnected+'n)</option>';
+  for(let i=0; i<comps.length; i++){
+    opts += '<option value="'+i+'">#'+(i+1)+' — '+comps[i].n+'n  '+comps[i].e+'e</option>';
+  }
+  compSel.innerHTML = opts;
+  // reconcile current selection
+  if(currentComponent !== 'all'){
+    const idx = parseInt(currentComponent, 10);
+    if(isNaN(idx) || idx < 0 || idx >= comps.length) currentComponent = 'all';
+  }
+  compSel.value = currentComponent;
+  document.getElementById('edge-mode-select').value = currentEdgeMode;
+  document.getElementById('layout-mode-select').value = currentLayoutMode;
+
+  // --- filter to selected component (if any).  Connected-only nodes
+  //     are the ones we router through components; isolated ring nodes
+  //     belong to no component, so they disappear whenever a specific
+  //     component is selected.
+  let nodes, edges;
+  if(currentComponent === 'all'){
+    nodes = allNodes;
+    edges = allEdges;
+  } else {
+    const keep = new Set(comps[parseInt(currentComponent,10)].nodeIds);
+    nodes = allNodes.filter(function(n){ return keep.has(n.id); });
+    edges = allEdges.filter(function(e){ return keep.has(e.source) && keep.has(e.target); });
+    // Re-center AND re-scale this component's positions to fill the
+    // canvas.  Without the re-scale, a big component that occupied
+    // only a slice of the [-0.5, 0.5] box (because ring-packing
+    // squashed it together with satellites) ends up displayed as a
+    // tiny blob even after fit() — the pre-computed coords simply
+    // don't use the full canvas.
+    if(nodes.length > 1){
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for(let i=0;i<nodes.length;i++){
+        const x = nodes[i].x, y = nodes[i].y;
+        if(x < minX) minX = x; if(x > maxX) maxX = x;
+        if(y < minY) minY = y; if(y > maxY) maxY = y;
+      }
+      const cx = (minX + maxX)/2, cy = (minY + maxY)/2;
+      const span = Math.max(maxX - minX, maxY - minY, 1e-9);
+      const target = 0.9;  // map into [-0.45, 0.45], matches the
+                           // normalization used for the full graph
+      nodes = nodes.map(function(n){
+        return Object.assign({}, n, {
+          x: (n.x - cx) / span * target,
+          y: (n.y - cy) / span * target,
+        });
+      });
+    } else if(nodes.length === 1){
+      nodes = nodes.map(function(n){ return Object.assign({}, n, {x:0,y:0}); });
+    }
+  }
+
+  document.getElementById('sidebar-title').textContent =
+    currentCampaign + ' · ' + currentVariant +
+    (currentComponent === 'all' ? '' : '  · component #'+(parseInt(currentComponent,10)+1));
+  const m = camp.meta;
+  const compSuffix = (currentComponent === 'all')
+    ? ''
+    : ('  · component '+(parseInt(currentComponent,10)+1)+'/'+comps.length);
+  document.getElementById('meta').textContent =
+    'authors ' + m.n_authors.toLocaleString() +
+    ' · IO ' + m.n_io.toLocaleString() +
+    ' · control ' + m.n_control.toLocaleString() +
+    ' · rows ' + m.total_rows.toLocaleString() +
+    ' · graph |V|=' + nodes.length + '  |E|=' + edges.length + compSuffix;
+  if(typeof vis === 'undefined'){ showError('vis-network failed to load'); return; }
+
+  // Node size shrinks as the graph grows, so a dense cluster doesn't
+  // read as a single blob — and when the user narrows to a single small
+  // component we use its own node count, so the dots grow back.
+  const n = nodes.length;
+  const baseSize = n > 4000 ? 2.2 : (n > 1500 ? 2.8 : (n > 400 ? 3.4 : (n > 80 ? 4.2 : 5.5)));
+  const degScale = n > 4000 ? 1.4 : (n > 1500 ? 1.8 : (n > 400 ? 2.2 : (n > 80 ? 2.8 : 3.4)));
+  const canvasScale = n > 4000 ? 2800 : (n > 1500 ? 2200 : (n > 400 ? 1700 : 1200));
+
+  // Cap the hub node size so a degree-50 IO hub doesn't swallow half
+  // the canvas.  Without this, `baseSize + log1p(50)·degScale` on a
+  // mid-sized component lands around 15, and a handful of hubs overlap
+  // each other and hide the lower-degree neighbours around them.
+  const maxSize = baseSize * 2.4;
+  const physicsOn = (currentLayoutMode === 'relax' && currentComponent !== 'all');
+
+  const visNodes = nodes.map(function(nd){
+    const rawSize = nd.connected
+        ? Math.min(maxSize, baseSize + Math.log1p(nd.degree||0) * degScale)
+        : Math.max(1.6, baseSize * 0.6);
+    // In physics-relaxation mode we let vis-network move the connected
+    // nodes — they start at the pre-computed position as a warm start
+    // but fixed:false lets the solver tune them.  Isolated nodes stay
+    // pinned to the ring.
+    const pinned = physicsOn ? !nd.connected : !nd.connected;
+    return {
+      id: nd.id, label: '',
+      title: (nd.accountid || '').slice(0,14)+'…',
+      x: nd.x * canvasScale, y: nd.y * canvasScale,
+      fixed: pinned,
+      size: rawSize,
+      color: { background: colorFor(nd), border: 'rgba(255,255,255,0.22)' },
+      borderWidth: 0.4,
+    };
+  });
+
+  // --- edge rendering.
+  //   width mode (default): thickness encodes the number of interaction
+  //     types (rt/reply/mention) that are non-zero, same as before.
+  //   color mode: constant thickness, viridis hue on log1p(total_weight).
+  //     The cap matches notebook 2's approach — we clip the colour scale
+  //     at a finite cap so a handful of very dense relations don't
+  //     compress every other edge into the dim end of the ramp.
+  let maxTotal = 1;
+  for(let i=0;i<edges.length;i++){
+    const w = edges[i].rt_weight + edges[i].reply_weight + edges[i].mention_weight;
+    if(w > maxTotal) maxTotal = w;
+  }
+  const edgeCap = Math.min(maxTotal, Math.max(20, Math.round(maxTotal * 0.5)));
+  const logCap = Math.log1p(edgeCap) || 1;
+  const edgeRampLegend = document.getElementById('legend-edge-ramp');
+  if(currentEdgeMode === 'color'){
+    edgeRampLegend.style.display = 'block';
+    document.getElementById('legend-edge-max').textContent = '≥ '+edgeCap;
+  } else {
+    edgeRampLegend.style.display = 'none';
+  }
+
+  const visEdges = edges.map(function(e){
+    const totalW = e.rt_weight + e.reply_weight + e.mention_weight;
+    if(currentEdgeMode === 'color'){
+      const t = Math.log1p(Math.min(totalW, edgeCap)) / logCap;
+      const col = viridis(t, 0.62);
+      return {
+        from: e.source, to: e.target,
+        title: 'rt='+e.rt_weight+' reply='+e.reply_weight+' mention='+e.mention_weight+' total='+totalW,
+        color: { color: col, highlight: viridis(Math.max(t,0.7), 0.95) },
+        width: 0.9,
+        arrows: { to: { enabled: true, scaleFactor: 0.22 } },
+        smooth: { enabled: true, type: 'continuous', roundness: 0.2 },
+      };
+    }
+    return {
+      from: e.source, to: e.target, value: e.n_weights,
+      title: 'rt='+e.rt_weight+' reply='+e.reply_weight+' mention='+e.mention_weight,
+      color: { color: 'rgba(0,255,136,0.20)', highlight: '#00ff88' },
+      arrows: { to: { enabled: true, scaleFactor: 0.22 } },
+      smooth: { enabled: true, type: 'continuous', roundness: 0.2 },
+    };
+  });
+  const container = document.getElementById('net');
+  if(net){ try{ net.destroy(); }catch(e){} }
+  // Physics configuration — only engaged in "relax" mode on a filtered
+  // component.  ForceAtlas2-based tends to separate tight clusters
+  // better than barnesHut on mid-sized graphs; we disable physics
+  // immediately after stabilization so drag still works without the
+  // nodes springing back.
+  const physicsOpt = physicsOn ? {
+    enabled: true,
+    solver: 'forceAtlas2Based',
+    forceAtlas2Based: {
+      gravitationalConstant: -55,
+      centralGravity: 0.008,
+      springLength: 80,
+      springConstant: 0.08,
+      damping: 0.55,
+      avoidOverlap: 0.7,
+    },
+    stabilization: {
+      enabled: true,
+      iterations: Math.min(400, Math.max(100, Math.round(6000 / Math.max(nodes.length, 1)))),
+      updateInterval: 25,
+      fit: true,
+    },
+    minVelocity: 0.8,
+    timestep: 0.4,
+  } : { enabled: false };
+
+  try {
+    net = new vis.Network(container,
+      { nodes: new vis.DataSet(visNodes), edges: new vis.DataSet(visEdges) },
+      {
+        physics: physicsOpt,
+        interaction: { zoomView:true, dragView:true, hover:true, dragNodes:true },
+        nodes: { shape: 'dot' },
+        edges: { selectionWidth: 2 },
+      });
+  } catch(err){ showError('vis.Network error: '+err.message); return; }
+  loading.style.display = 'none';
+  if(physicsOn){
+    loading.style.display = 'block';
+    loading.textContent = 'Relaxing layout…';
+    net.once('stabilizationIterationsDone', function(){
+      net.setOptions({ physics: { enabled: false } });
+      loading.style.display = 'none';
+      net.fit({ animation:false });
+    });
+  } else {
+    net.once('afterDrawing', function(){ net.fit({ animation:false }); });
+  }
+  net.on('click', function(params){
+    if(params.nodes && params.nodes.length){
+      const nd = nodes.find(function(x){ return x.id === params.nodes[0]; });
+      if(nd) renderAccount(nd.accountid);
+    }
+  });
+
+  function renderAccount(accountid){
+    const info = camp.accounts[accountid];
+    const tgt = document.getElementById('inspector');
+    if(!info){ tgt.innerHTML = '<div class="hint">No metadata for this account.</div>'; return; }
+    const badge = info.is_control ? '<span class="badge ctl">control</span>' : '<span class="badge io">IO</span>';
+    const tags = (info.top_hashtags||[]).map(function(p){
+      return '<span class="tag">#'+esc(p[0])+' ×'+p[1]+'</span>';
+    }).join(' ') || '<span class="hint">none</span>';
+    const posts = (info.posts||[]).map(function(p){
+      return '<div class="post '+esc(p.kind)+'">'
+           +   '<div class="meta">'+esc(p.time)+' · '+esc(p.kind)+' · '+esc(p.lang||'?')+'</div>'
+           +   '<div>'+esc(p.text)+'</div>'
+           + '</div>';
+    }).join('');
+    tgt.innerHTML =
+      '<div>'+badge+'<span class="id">'+esc(accountid)+'</span></div>'+
+      '<table>'+
+        '<tr><td>Posts</td><td>'+info.n_posts+'</td></tr>'+
+        '<tr><td>Retweets</td><td>'+info.n_retweets+'</td></tr>'+
+        '<tr><td>Replies</td><td>'+info.n_replies+'</td></tr>'+
+        '<tr><td>Mentions</td><td>'+info.n_mentions+'</td></tr>'+
+        '<tr><td>Followers</td><td>'+(info.followers||0).toLocaleString()+'</td></tr>'+
+        '<tr><td>Following</td><td>'+(info.following||0).toLocaleString()+'</td></tr>'+
+        '<tr><td>Created</td><td>'+esc(info.created)+'</td></tr>'+
+        '<tr><td>Active</td><td>'+esc(info.first_post)+' → '+esc(info.last_post)+'</td></tr>'+
+      '</table>'+
+      '<div style="margin-top:8px;"><em>Profile:</em> '+(esc(info.description)||'<span class="hint">—</span>')+'</div>'+
+      '<div style="margin-top:8px;"><em>Top hashtags:</em><br>'+tags+'</div>'+
+      '<div style="margin-top:12px;font-weight:600;">Most recent '+((info.posts||[]).length)+' posts</div>'+
+      (posts || '<div class="hint">no posts captured for this account</div>');
+  }
+
+  function refreshList(filter){
+    const list = document.getElementById('acct-list');
+    const q = (filter || '').toLowerCase();
+    const rows = nodes
+      .filter(function(n){ return !q || n.accountid.toLowerCase().startsWith(q); })
+      .slice(0, 500)
+      .map(function(n){
+        const cls = !n.connected ? 'iso' : (n.is_control ? 'ctl' : 'io');
+        return '<div class="row" data-id="'+esc(n.accountid)+'">'
+             +   '<span class="'+cls+'">●</span> '+esc((n.accountid||'').slice(0,22))+'…'
+             + '</div>';
+      }).join('');
+    list.innerHTML = rows;
+    list.querySelectorAll('.row').forEach(function(r){
+      r.addEventListener('click', function(){
+        const id = r.dataset.id;
+        renderAccount(id);
+        const nd = nodes.find(function(n){ return n.accountid === id; });
+        if(nd){
+          net.selectNodes([nd.id]);
+          net.focus(nd.id, { scale:1.4, animation:{ duration:400 } });
+        }
+      });
+    });
+  }
+  const search = document.getElementById('search');
+  search.value = '';
+  search.oninput = function(ev){ refreshList(ev.target.value); };
+  refreshList('');
+  document.getElementById('inspector').innerHTML = '<div class="hint">Click a node to inspect the account.</div>';
+}
+
+async function switchCampaign(name){
+  loading.style.display = 'block';
+  loading.textContent = 'Loading '+name+'…';
+  try {
+    await loadCampaign(name);
+  } catch(err){
+    showError(err.message);
+    loading.style.display = 'none';
+    return;
+  }
+  currentCampaign = name;
+  render();
+}
+
+document.getElementById('campaign-select').addEventListener('change', function(ev){
+  currentComponent = 'all';  // new campaign → don't carry stale component index
+  switchCampaign(ev.target.value);
+});
+document.getElementById('variant-select').addEventListener('change', function(ev){
+  currentVariant = ev.target.value;
+  currentComponent = 'all';  // new variant has different components
+  if(currentCampaign) render();
+});
+document.getElementById('component-select').addEventListener('change', function(ev){
+  currentComponent = ev.target.value;
+  if(currentCampaign) render();
+});
+document.getElementById('edge-mode-select').addEventListener('change', function(ev){
+  currentEdgeMode = ev.target.value;
+  if(currentCampaign) render();
+});
+document.getElementById('layout-mode-select').addEventListener('change', function(ev){
+  currentLayoutMode = ev.target.value;
+  if(currentCampaign) render();
+});
+
+// Arrow-key navigation over the component dropdown.  Skipped when the
+// user is typing in the search box or focused on a dropdown (the
+// browser's native select keybindings then take over).
+document.addEventListener('keydown', function(ev){
+  const t = ev.target;
+  if(t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+  if(ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
+  const sel = document.getElementById('component-select');
+  if(!sel.options.length) return;
+  const delta = ev.key === 'ArrowRight' ? 1 : -1;
+  const next = Math.max(0, Math.min(sel.options.length - 1, sel.selectedIndex + delta));
+  if(next !== sel.selectedIndex){
+    sel.selectedIndex = next;
+    sel.dispatchEvent(new Event('change'));
+  }
+  ev.preventDefault();
+});
+
+// initial load
+switchCampaign(CAMPAIGN_ORDER[0]);
+</script></body></html>

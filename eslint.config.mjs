@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored static demos served from /public are not app source.
     "public/**",
+    // Local Netlify build output.
+    ".netlify/**",
   ]),
 ]);
 

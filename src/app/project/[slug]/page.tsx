@@ -8,6 +8,7 @@ import { ShareButtons } from "@/components/ShareButtons";
 import { TransportDemo } from "@/components/TransportDemo";
 import { OrchEcommShowcase } from "@/components/OrchEcommShowcase";
 import { OrchMarketingDemo } from "@/components/OrchMarketingDemo";
+import { TspaViewer } from "@/components/TspaViewer";
 import { btnSecondary } from "@/components/ui";
 
 export function generateStaticParams() {
@@ -85,6 +86,7 @@ export default async function ProjectPage({
             )}
           </header>
           {project.demo === "transport" && <TransportDemo />}
+          {project.demo === "tspa" && <TspaViewer />}
           {project.demo === "orchecomm" && (
             <>
               <OrchMarketingDemo />
